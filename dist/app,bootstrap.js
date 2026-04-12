@@ -8,10 +8,11 @@ const cors_1 = __importDefault(require("cors"));
 const modules_1 = require("./modules");
 const error_middleware_1 = require("./middleware/error.middleware");
 const DB_1 = require("./DB");
+const service_1 = require("./common/service");
 async function bootstrap() {
     const app = (0, express_1.default)();
     await (0, DB_1.connectDB)();
-    await (0, DB_1.redicConnection)();
+    await service_1.redisService.connect();
     app.use((0, cors_1.default)(), express_1.default.json());
     app.get("/", (req, res) => {
         res.send("Hello");

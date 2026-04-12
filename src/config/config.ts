@@ -20,8 +20,12 @@ export const SUPERVISER_TOKEN_SECRET_KEY = process.env.SUPERVISER_TOKEN_SECRET_K
 // Expires Time
 export const REFREASH_EXPIRES_IN = parseInt(process.env.REFREASH_EXPIRES_IN!)
 export const ACCESS_EXPIRES_IN = parseInt(process.env.ACCESS_EXPIRES_IN!)
-//====================== Encryption Secret =================
+//====================== Encryption NATIONAL_ID_Secret =================
 export const NATIONAL_ID_SECRET = Buffer.from(process.env.NATIONAL_ID_SECRET!)
+//====================== ENCRYPTION_SECRET_KEY =================
+export const ENCRYPTION_SECRET_KEY = Buffer.from(process.env.ENCRYPTION_SECRET_KEY!)
+//====================== ENCRYPTION IV_LENGTH ===================
+export const IV_LENGTH = Number(process.env.IV_LENGTH ?? 16)!
 //====================== Hash Salt_Round ===================
 export const SALT_ROUND = parseInt(process.env.SALT_ROUND ?? "12")!
 //====================== Send OTP ==========================

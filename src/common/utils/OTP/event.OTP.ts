@@ -19,7 +19,7 @@ export const emailEmitter = new EventEmitter();
 emailEmitter.on(
   "SEND_OTP",
   async (payload: SendOTPEventPayload) => {
-    const { to, code, subject = OTPSubjectEnum.VerifyAccount, title = OTPTitleEnum.confirmEmail, expiredTime = 5 } = payload;
+    const { to, code, subject = OTPSubjectEnum.VERIFYACCOUNT, title = OTPTitleEnum.CONFIRMEMAIL, expiredTime = 5 } = payload;
 
     if (!to || !code) {
       console.error("SEND_OTP event missing required params");

@@ -11,7 +11,6 @@ const node_crypto_1 = require("node:crypto");
 const exception_1 = require("../../exception");
 const service_1 = require("../../service");
 const Repository_1 = require("../../../DB/Repository");
-const models_1 = require("../../../DB/models");
 const generateToken = async ({ payload = {}, secret = config_1.USER_TOKEN_SECRET_KEY, options = {} } = {}) => {
     return jsonwebtoken_1.default.sign(payload, secret, options);
 };
@@ -68,7 +67,7 @@ const decodedToken = async ({ token, tokenType = security_enum_1.TokenTypeEnum.A
     }
     const { accessSignature, refreashSignature } = await getTokenSignature(Number(audience));
     const verifiedDate = await verifyToken({ token, secret: tokenType === security_enum_1.TokenTypeEnum.REFREASH ? refreashSignature : accessSignature });
-    const user = await new Repository_1.UserRepository(models_1.UserModel).findOne({ filter: { _id: verifiedDate.sub } });
+    const user = await new Repository_1.UserRepository().findOne({ filter: { _id: verifiedDate.sub } });
     if (!user) {
         throw new exception_1.UnauthorizedException("Not Register account");
     }

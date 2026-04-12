@@ -1,20 +1,21 @@
-import { OAuth2Client } from 'google-auth-library';
+import { OAuth2Client, TokenPayload } from 'google-auth-library';
 import { OTPSubjectEnum, OTPTitleEnum, ProviderEnum, RedisActionsEnum, RedisTypeEnum } from '../../common/enum';
 import { BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from '../../common/exception';
-import { deleteKey, get, RedisKey, set } from '../../common/service';
-import { generateOtpAndSendOtpEmail, isKeyBlocked, isKeyExpired, maxKeyRequest } from '../../common/service/OTP.service';
-import { compareHash, createLoginCredentials, generateHash } from '../../common/utils/security';
+import {RedisService, redisService , generateOtpAndSendOtpEmail, isKeyBlocked, isKeyExpired, maxKeyRequest , tokenService, TokenService, IGenerateToken } from '../../common/service/index';
+import { compareHash, generateHash } from '../../common/utils/security';
 import { WEB_CLIENT_ID } from '../../config/config';
 import { UserRepository } from '../../DB/Repository';
-import { UserModel } from './../../DB/models/user.model';
-import { ILoginDTO, ISignupDTO } from "./auth.dto";
-import { IGenerateToken } from '../../common/global_Interface.interface';
+import { IConfirmEmailDTO, IConfirmForgetPasswordDTO, ILoginDTO, IResetPasswordDTO, ISignupDTO } from "./auth.dto";
 class AuthService {
   private readonly UserRepository : UserRepository
+  private redis : RedisService
+  private token : TokenService
   constructor() {
-    this.UserRepository = new UserRepository(UserModel)
+    this.UserRepository = new UserRepository()
+    this.redis = redisService
+    this.token = tokenService
   }
-  private async verifyGoogleAccount(idToken : string){
+  private async verifyGoogleAccount(idToken : string) : Promise<TokenPayload>{
   const client = new OAuth2Client();
   const ticket = await client.verifyIdToken({
     idToken,
@@ -28,13 +29,12 @@ class AuthService {
   };
   async signup(data: ISignupDTO): Promise<string> {
     const { email, password } = data;
-    const user = await this.UserRepository.findOne({filter : {email , confirmEmail: null,
-      provider: ProviderEnum.SYSTEM}})
+    const user = await this.UserRepository.findOne({filter : {email , confirmEmail: null,provider: ProviderEnum.SYSTEM}})
     if (user) {
       throw new ConflictException("User Exist")
     }
-    await this.UserRepository.create({
-      data : [{...data , password : await generateHash(password)}]
+    await this.UserRepository.createOne({
+      data : {...data , password : await generateHash(password)}
     })
     await generateOtpAndSendOtpEmail({email , expiredTime :  2  })
     return "Check from your gmail"
@@ -44,19 +44,19 @@ class AuthService {
     if (!user) {
       throw new NotFoundException("Fail to find matching account")
     }
-    await isKeyBlocked({email , type : RedisTypeEnum.ConfirmEmail , blockAction : RedisActionsEnum.BlockRequest})
-    await isKeyExpired({email , type : RedisTypeEnum.ConfirmEmail })
-    await maxKeyRequest({email , type : RedisTypeEnum.ConfirmEmail , blockAction : RedisActionsEnum.BlockRequest , expiredTime : 5})
-    await generateOtpAndSendOtpEmail({email , expiredTime : 2 , title : OTPTitleEnum.ConfirmEmail , subject : OTPSubjectEnum.VerifyAccount})
+    await isKeyBlocked({email , type : RedisTypeEnum.CONFIRMEMAIL , blockAction : RedisActionsEnum.BLOCKREQUEST})
+    await isKeyExpired({email , type : RedisTypeEnum.CONFIRMEMAIL })
+    await maxKeyRequest({email , type : RedisTypeEnum.CONFIRMEMAIL , blockAction : RedisActionsEnum.BLOCKREQUEST , expiredTime : 5})
+    await generateOtpAndSendOtpEmail({email , expiredTime : 2 , title : OTPTitleEnum.CONFIRMEMAIL , subject : OTPSubjectEnum.VERIFYACCOUNT})
     return "The code has been sent again, please check your email."
   }
-  async confirmEmail(data : {otp : string , email : string}) : Promise<string>{
+  async confirmEmail(data : IConfirmEmailDTO) : Promise<string>{
     const {otp , email} = data
     const user = await this.UserRepository.findOne({filter :  {email , confirmedAt: null,provider: ProviderEnum.SYSTEM}})
     if (!user) {
       throw new NotFoundException("Fail to find matching account")
     }
-    const hashedOTP : string | null= await get({key : RedisKey({type : OTPTitleEnum.ConfirmEmail , key : email})})
+    const hashedOTP : string | null= await this.redis.get({key : this.redis.RedisKey({type : OTPTitleEnum.CONFIRMEMAIL , key : email})})
     if (!hashedOTP) {
       throw new BadRequestException("Expired otp");
     }
@@ -65,13 +65,13 @@ class AuthService {
     }
     user.confirmedAt = new Date()
     await user.save()
-    await deleteKey(RedisKey({ key : email , action : RedisActionsEnum.Request}))
+    await this.redis.deleteKey(this.redis.RedisKey({ key : email , action : RedisActionsEnum.REQUEST}))
     return "Confirm Email Successfuly"
   }
   async login(data: ILoginDTO , issure : string) : Promise<IGenerateToken> {
     const {email , password} = data
-    await isKeyBlocked({email , type  :RedisTypeEnum.Login , action : RedisActionsEnum.BlockLogin})
-    await maxKeyRequest({email , type : RedisTypeEnum.Login , expiredTime : 5  , blockAction : RedisActionsEnum.BlockLogin})
+    await isKeyBlocked({email , type  :RedisTypeEnum.LOGIN , action : RedisActionsEnum.BLOCKLOGIN})
+    await maxKeyRequest({email , type : RedisTypeEnum.LOGIN , expiredTime : 5  , blockAction : RedisActionsEnum.BLOCKLOGIN})
     const account = await this.UserRepository.findOne({filter:{email , confirmedAt : {$exists : true}}})
     if (!account) {
       throw new NotFoundException("Fail to find matching account")
@@ -79,10 +79,10 @@ class AuthService {
     if (!await compareHash(password , account.password)) {
         throw new BadRequestException("Invalid Cerdientails")
     }
-    await deleteKey(RedisKey({key : email , type : RedisTypeEnum.Login , action : RedisActionsEnum.Request}))
-    return await createLoginCredentials(account , issure)
+    await this.redis.deleteKey(this.redis.RedisKey({key : email , type : RedisTypeEnum.LOGIN , action : RedisActionsEnum.REQUEST}))
+    return await this.token.createLoginCredentials(account , issure)
   }
-  async forgetPassword({email , phone} : {email : string  , phone  : string}) : Promise<string>{
+  async forgetPassword({email , phone} : {email : string , phone : string}) : Promise<string>{
     const user = await this.UserRepository.findOne({filter: {
       $or:[
         {email},
@@ -94,11 +94,11 @@ class AuthService {
     if (!user) {
     throw new NotFoundException("This account not found" );
     }
-    await isKeyExpired({email : email || phone , type : RedisTypeEnum.ForgetPassword})
-    await generateOtpAndSendOtpEmail({email : email ?? phone , expiredTime : 2 , title : OTPTitleEnum.ForgetPassword , subject : OTPSubjectEnum.ForgetPassword})
+    await isKeyExpired({email : email || phone , type : RedisTypeEnum.FORGETPASSWORD})
+    await generateOtpAndSendOtpEmail({email : email ?? phone , expiredTime : 2 , title : OTPTitleEnum.FORGETPASSWORD , subject : OTPSubjectEnum.FORGETPASSWORD})
     return "OTP sent to your email"
   }
-  async confirmForgetPassword({ email, otp } : {email : string , otp : string}) : Promise<string>{
+  async confirmForgetPassword({ email, otp } : IConfirmForgetPasswordDTO) : Promise<string>{
   const user = this.UserRepository.findOne({    filter: {
       email,
       confirmedAt: { $exists: true },
@@ -107,7 +107,7 @@ class AuthService {
   if (!user) {
     throw new NotFoundException( "Fail to find matching account");
   }
-  const hashedOTP = await get({key : RedisKey({type : OTPTitleEnum.ForgetPassword ,key : email})})
+  const hashedOTP = await this.redis.get({key : this.redis.RedisKey({type : OTPTitleEnum.FORGETPASSWORD ,key : email})})
 
   if (!hashedOTP) {
     throw new NotFoundException("Expired otp" );
@@ -116,11 +116,11 @@ class AuthService {
   if (!checkOtp) {
     throw new ConflictException("Invalid otp");
   }
-  await deleteKey(RedisKey({ key : email , type : RedisTypeEnum.ForgetPassword}))
-  await set({key : RedisKey({type : RedisTypeEnum.ResetPassword , key : email}) , value : 1 , ttl : 120}) 
+  await this.redis.deleteKey(this.redis.RedisKey({ key : email , type : RedisTypeEnum.FORGETPASSWORD}))
+  await this.redis.set({key : this.redis.RedisKey({type : RedisTypeEnum.RESETPASSWORD , key : email}) , value : 1 , ttl : 120}) 
   return "OTP verified successfully";
   }
-  async resetPassword({email , password} : {email : string , password : string}) : Promise<string>{
+  async resetPassword({email , password} : IResetPasswordDTO) : Promise<string>{
   const user = await this.UserRepository.findOne({filter: {
       email,
       confirmedAt: { $exists: true },
@@ -129,7 +129,7 @@ class AuthService {
   if (!user) {
     throw new NotFoundException("Fail to find matching account");
   }
-  const session = await get({ key: RedisKey({type : RedisTypeEnum.ResetPassword ,key : email}) });
+  const session = await this.redis.get({ key: this.redis.RedisKey({type : RedisTypeEnum.RESETPASSWORD ,key : email}) });
   if (!session) {
     throw new UnauthorizedException( "Invalid reset session")
   }
@@ -144,8 +144,14 @@ class AuthService {
   return "Password changed Successfuly"
   };
   async signupWithGmail({ idToken } : {idToken : string}, issuer : string) {
+    console.log({ii : idToken});
+    
   const payload = await this.verifyGoogleAccount(idToken);
+  console.log({pat : payload});
+  
   const checkUserExist = await this.UserRepository.findOne({filter: { email: payload.email as string }})
+  console.log({checkUserExist});
+  
   if (checkUserExist) {
     if (checkUserExist?.provider == ProviderEnum.SYSTEM) {
       throw new ConflictException("Account already exist with diffrent provider ");
@@ -153,7 +159,6 @@ class AuthService {
     const account = await this.loginWithGmail({ idToken }, issuer);
     return { account, status: 200 };
   }
-
   const user = await this.UserRepository.createOne({
     data: {
       firstName: payload.given_name as string,
@@ -164,17 +169,22 @@ class AuthService {
       confirmedAt: new Date() as Date,
     },
   })
-  return { account: await createLoginCredentials(user, issuer) };
+  console.log({user});
+  return { account: await this.token.createLoginCredentials(user, issuer) };
   };
   async loginWithGmail ({ idToken } : {idToken : string}, issuer : string) : Promise<IGenerateToken>{
   const payload = await this.verifyGoogleAccount(idToken);
+  console.log({payload2 : payload});
+  
   const user = await this.UserRepository.findOne({
     filter: { email: payload.email as string, provider: ProviderEnum.GOOGLE }
   })
+  console.log({user2 : user});
+  
   if (!user) {
     throw new NotFoundException( "Invalid login credentials or invalid login approach");
   }
-  return await createLoginCredentials(user, issuer);
+  return await this.token.createLoginCredentials(user, issuer);
   };
 }
 export const authService = new AuthService();

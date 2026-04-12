@@ -15,3 +15,5 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./redis.service"), exports);
+__exportStar(require("./OTP.service"), exports);
+__exportStar(require("./token.service"), exports);

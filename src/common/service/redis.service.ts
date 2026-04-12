@@ -1,127 +1,154 @@
-import { RedisTypeEnum, RedisActionsEnum } from './../enum/redis.enum';
-import { redisClient } from "../../DB";
+import { RedisTypeEnum, RedisActionsEnum } from "./../enum/redis.enum";
+import { createClient, RedisClientType } from "redis";
+import { REDIS_URI } from "../../config/config";
+import { Types } from "mongoose";
 type RedisKeyParams = {
-  type?:string
-  key?: string
-  action?: (typeof RedisActionsEnum)[keyof typeof RedisActionsEnum] | undefined
-  blockAction?: (typeof RedisActionsEnum)[keyof typeof RedisActionsEnum] | undefined
-}
-
-type RevokeTokenParams = {
-  userId: string | number
-  jti: string
-}
+  type?: string;
+  key?: string;
+  action?: (typeof RedisActionsEnum)[keyof typeof RedisActionsEnum] | undefined;
+  blockAction?:
+    | (typeof RedisActionsEnum)[keyof typeof RedisActionsEnum]
+    | undefined;
+};
 
 type SetParams<T = any> = {
-  key: string
-  value: T
-  ttl?: number
-  parse?: boolean
-}
+  key: string;
+  value: T;
+  ttl?: number;
+  parse?: boolean;
+};
 
 type GetParams = {
-  key: string
-  parse?: boolean
-}
-export const RevokeTokenKey = (userId: string | number): string => {
-  return `revoke:${userId}`
-}
+  key: string;
+  parse?: boolean;
+};
 
-export const RevokeAllTokenKey = (userId: string | number): string => {
-  return `revoke_all:${userId}`
-}
-
-const baseRedis = (
-  { type = RedisTypeEnum.ConfirmEmail, key = RedisActionsEnum.Request , action , blockAction }: RedisKeyParams ): string => {
-   return blockAction ? `${type}::${key}::${blockAction}` :  action ? `${type}::${key}::${action}` :  `${type}::${key}` 
-}
-
-export const baseProfileRedis = (key: string): string => {
-  return `profile::view::${key}`
-}
-
-export const RedisKey = (params: RedisKeyParams = {}): string => {
-  return baseRedis(params)
-}
-
-export const RedisMaxRequestKey = (params: RedisKeyParams = {}): string => {
-  return baseRedis(params)
-}
-
-export const RedisBlockKey = (params: RedisKeyParams = {}): string => {
-  return baseRedis(params)
-}
-//======================== Set ==========================
-export const set = async <T>({
-  key,
-  value,
-  ttl,
-  parse = false,
-}: SetParams<T>): Promise<string | null> => {
-  const Value = parse ? JSON.stringify(value) : (value as any)
-
-  if (ttl) {
-    return await redisClient.set(key, Value, { EX: ttl })
+export class RedisService {
+  private clint: RedisClientType;
+  constructor() {
+    this.clint = createClient({
+      url: REDIS_URI,
+    });
+    this.handleEvents()
+  }
+  private handleEvents(){
+    this.clint.on('connect',()=>{console.log(`Redis connected Successfuly ❤️🌞`)})
+    this.clint.on('error',(error)=>{console.log(`Fail to Connect Redis ❌ ${error}`)})
   }
 
-  return await redisClient.set(key, Value)
+  async connect(){
+    await this.clint.connect()
+  }
+  RevokeTokenKey(userId: string | Types.ObjectId): string {
+    return `revoke:${userId}`;
+  }
+
+  RevokeAllTokenKey(userId: string | Types.ObjectId): string {
+    return `revoke_all:${userId}`;
+  }
+
+  baseRedis({
+    type = RedisTypeEnum.CONFIRMEMAIL,
+    key = RedisActionsEnum.REQUEST, 
+    action,
+    blockAction,
+  }: RedisKeyParams): string {
+    return blockAction
+      ? `${type}::${key}::${blockAction}`
+      : action
+        ? `${type}::${key}::${action}`
+        : `${type}::${key}`;
+  }
+
+  baseProfileRedis(key: string): string {
+    return `profile::view::${key}`;
+  }
+
+  RedisKey(params: RedisKeyParams = {}): string {
+    return this.baseRedis(params);
+  }
+
+  RedisMaxRequestKey(params: RedisKeyParams = {}): string {
+    return this.baseRedis(params);
+  }
+
+  RedisBlockKey(params: RedisKeyParams = {}): string {
+    return this.baseRedis(params);
+  }
+  //======================== Set ==========================
+  async set<T>({
+    key,
+    value,
+    ttl,
+    parse = false,
+  }: SetParams<T>): Promise<string | null> {
+    const Value = parse ? JSON.stringify(value) : (value as any);
+
+    if (ttl) {
+      return await this.clint.set(key, Value, { EX: ttl });
+    }
+
+    return await this.clint.set(key, Value);
+  }
+
+  //======================== Get ==========================
+  async get<T = any>({
+    key,
+    parse = false,
+  }: GetParams): Promise<T | string | null> {
+    const data = await this.clint.get(key);
+
+    if (!data) return null;
+
+    return parse ? (JSON.parse(data) as T) : data;
+  }
+
+  //======================== Delete =======================
+  async deleteKey(key: string | string[]): Promise<number> {
+    if (!key) return 0;
+    return await this.clint.del(key);
+  }
+
+  //======================== Exists =======================
+  async exists(key: string): Promise<number> {
+    return await this.clint.exists(key);
+  }
+
+  //======================== Expire =======================
+  async expire(key: string, ttl: number): Promise<number> {
+    return await this.clint.expire(key, ttl);
+  }
+
+  //======================== TTL ==========================
+  async ttl(key: string): Promise<number> {
+    return await this.clint.ttl(key);
+  }
+
+  //======================== Incr =========================
+  async incr(key: string): Promise<number> {
+    return await this.clint.incr(key);
+  }
+
+  //======================== mGet =========================
+  async mGet(keys: string[]): Promise<(string | null)[]> {
+    if (!keys.length) return [];
+    return await this.clint.mGet(keys);
+  }
+
+  //======================== Keys =========================
+  async keys(prefix: string): Promise<string[]> {
+    return await this.clint.keys(`${prefix}*`);
+  }
+  //======================== SADD =========================
+  async sadd(key: string, value: string): Promise<number> {
+    return await this.clint.sAdd(key, value);
+  }
+
+  //======================== SISMEMBER ====================
+  async sismember(key: string, value: string): Promise<boolean> {
+    const result = await this.clint.sIsMember(key, value);
+    return result === 1;
+  }
 }
 
-//======================== Get ==========================
-export const get = async <T = any>({
-  key,
-  parse = false,
-}: GetParams): Promise<T | string | null> => {
-  const data = await redisClient.get(key)
-
-  if (!data) return null
-
-  return parse ? (JSON.parse(data) as T) : data
-}
-
-//======================== Delete =======================
-export const deleteKey = async (key: string): Promise<number> => {
-  if (!key) return 0
-  return await redisClient.del(key)
-}
-
-//======================== Exists =======================
-export const exists = async (key: string): Promise<number> => {
-  return await redisClient.exists(key)
-}
-
-//======================== Expire =======================
-export const expire = async (key: string, ttl: number): Promise<number> => {
-  return await redisClient.expire(key, ttl)
-}
-
-//======================== TTL ==========================
-export const ttl = async (key: string): Promise<number> => {
-  return await redisClient.ttl(key)
-}
-
-//======================== Incr =========================
-export const incr = async (key: string): Promise<number> => {
-  return await redisClient.incr(key)
-}
-
-//======================== mGet =========================
-export const mGet = async (keys: string[]): Promise<(string | null)[]> => {
-  if (!keys.length) return []
-  return await redisClient.mGet(keys)
-}
-
-//======================== Keys =========================
-export const keys = async (prefix: string): Promise<string[]> => {
-  return await redisClient.keys(`${prefix}*`)
-}
-//======================== SADD =========================
-export const sadd = async (key: string, value: string): Promise<number> => {
-  return await redisClient.sAdd(key, value)
-}
-
-//======================== SISMEMBER ====================
-export const sismember = async (key: string, value: string): Promise<boolean> => {
-  const result = await redisClient.sIsMember(key, value)
-  return result === 1
-}
+export const redisService = new RedisService()

@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authorization = exports.authentication = void 0;
 const exception_1 = require("../common/exception");
-const security_1 = require("../common/utils/security");
 const enum_1 = require("../common/enum");
+const index_1 = require("../common/service/index");
 const authentication = (tokenType = enum_1.TokenTypeEnum.ACCESS) => {
     return async (req, res, next) => {
         if (!req.headers?.authorization) {
@@ -11,7 +11,7 @@ const authentication = (tokenType = enum_1.TokenTypeEnum.ACCESS) => {
         }
         const { authorization } = req.headers;
         const [flag, credential] = authorization.split(" ");
-        const { user, decode } = await (0, security_1.decodedToken)({
+        const { user, decode } = await index_1.tokenService.decodedToken({
             token: credential,
             tokenType,
         });

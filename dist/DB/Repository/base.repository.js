@@ -13,11 +13,52 @@ class BaseRepository {
         const [doc] = await this.model.create(data, options);
         return doc;
     }
-    async find({ filter, options }) {
-        return await this.model.find(filter || {}, null, options);
+    async find({ filter, projection, options }) {
+        return await this.model.find(filter || {}, projection, options);
     }
-    async findOne({ filter, options }) {
-        return await this.model.findOne(filter, null, options).exec();
+    async findOne({ filter, projection, options }) {
+        const doc = this.model.findOne(filter, projection);
+        if (options?.lean) {
+            doc.lean(options.lean);
+        }
+        if (options?.populate) {
+            doc.populate(options.populate);
+        }
+        return await doc.exec();
+    }
+    async findById({ _id, projection, options }) {
+        const doc = this.model.findById(_id, projection);
+        if (options?.lean) {
+            doc.lean();
+        }
+        if (options?.populate) {
+            doc.populate(options.populate);
+        }
+        return await doc.exec();
+    }
+    async updateOne({ filter = {}, update, options }) {
+        return await this.model.updateOne(filter, update, options);
+    }
+    async updateMany({ filter = {}, update, options }) {
+        return await this.model.updateMany(filter, update, options);
+    }
+    async findOneAndUpdate({ filter = {}, update, options }) {
+        return await this.model.findOneAndUpdate(filter, update, options);
+    }
+    async findByIdAndUpdate({ _id, update, options }) {
+        return await this.model.findByIdAndUpdate(_id, update, options);
+    }
+    async deleteOne({ filter = {} }) {
+        return await this.model.deleteOne(filter);
+    }
+    async deleteMany({ filter = {} }) {
+        return await this.model.deleteMany(filter);
+    }
+    async findOneAndDelete({ filter = {}, options }) {
+        return await this.model.findOneAndDelete(filter, options);
+    }
+    async findByIdAndDelete({ _id, options }) {
+        return await this.model.findByIdAndDelete(_id, options);
     }
 }
 exports.BaseRepository = BaseRepository;

@@ -1,21 +1,23 @@
+import { TokenService, tokenService , redisService, RedisService, IGenerateToken} from './../../common/service';
 import { IUser } from './../../common/enum/user.enum';
-import { createLoginCredentials, decodedToken } from './../../common/utils/security/token.security';
-import { UserModel } from "../../DB/models";
 import { UserRepository } from "../../DB/Repository";
-import { NotFoundException } from '../../common/exception';
+import { ConflictException, NotFoundException } from '../../common/exception';
 import { LogoutEnum } from '../../common/enum';
 import { compareHash, generateHash } from '../../common/utils/security';
 import { HydratedDocument } from 'mongoose';
-import { IGenerateToken } from '../../common/global_Interface.interface';
-import { expire, RevokeAllTokenKey, RevokeTokenKey, sadd, set } from '../../common/service';
 import { JwtPayload } from 'jsonwebtoken';
+import { ACCESS_EXPIRES_IN } from '../../config/config';
 
 class UserService {
     private readonly UserRepository : UserRepository
+    private redis : RedisService
+    private tokenService : TokenService
     constructor(){
-        this.UserRepository = new UserRepository(UserModel)
+        this.UserRepository = new UserRepository()
+        this.redis = redisService
+        this.tokenService = tokenService
     }
-    async profile(User : IUser){
+    async profile(User : HydratedDocument<IUser>){
         const user = await this.UserRepository.findOne({filter : {_id : User?._id , confirmedAt : {$exists : true}}})
         if (!user) {
             throw new NotFoundException("No account matching")
@@ -31,8 +33,17 @@ class UserService {
         await user.save()
         return "Update Password successfuly"
     }
-    async rotateToken(user : HydratedDocument<IUser> , issure : string) : Promise<IGenerateToken>{
-        return await createLoginCredentials(user , issure)
+    async rotateToken(user : HydratedDocument<IUser> , issure : string , decodedToken: JwtPayload) : Promise<IGenerateToken>{await this.redis.sadd(this.redis.RevokeTokenKey(String(user._id)) , String(decodedToken.jti))
+        const now = Math.floor(Date.now() / 1000)
+        const ttl = (decodedToken.exp as number) - now
+        if (now < ((decodedToken.iat as number) + ACCESS_EXPIRES_IN)) {
+            throw new ConflictException("Current access session still valid")
+        }
+        console.log("hhhh");
+        
+        await this.redis.sadd(this.redis.RevokeTokenKey(String(user._id)) , String(decodedToken.jti))
+        await this.redis.expire(this.redis.RevokeTokenKey(String(user._id)),ttl)
+        return await this.tokenService.createLoginCredentials(user , issure)
     }
     async logout({ flag }: { flag: number },user: HydratedDocument<IUser>,decodedToken: JwtPayload): Promise<number> {
         let status = 200
@@ -41,11 +52,15 @@ class UserService {
 
         switch (flag) {
             case LogoutEnum.ALL:
-            await set({key: RevokeAllTokenKey(String(user._id)),value: now})
+            user.changeCredentialsTime = new Date()
+            await user.save()
+            await this.redis.set({key: this.redis.RevokeAllTokenKey(String(user._id)),value: now})
         break
         default:
-            await sadd(RevokeTokenKey(String(user._id)) , String(decodedToken.jti))
-            await expire(RevokeTokenKey(String(user._id)),ttl)
+            user.changeCredentialsTime = new Date()
+            await user.save()
+            await this.redis.sadd(this.redis.RevokeTokenKey(String(user._id)) , String(decodedToken.jti))
+            await this.redis.expire(this.redis.RevokeTokenKey(String(user._id)),ttl)
             status = 201
         break
         }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.API_SECRET = exports.API_KEY = exports.CLOUD_NAME = exports.APPLICATION_NAME = exports.WEB_CLIENT_ID = exports.TWITER_LINK = exports.INSTAGRAM_LINK = exports.FACEBOOK_LINK = exports.PASSWORD_APP = exports.EMAIL_APP = exports.SALT_ROUND = exports.NATIONAL_ID_SECRET = exports.ACCESS_EXPIRES_IN = exports.REFREASH_EXPIRES_IN = exports.SUPERVISER_TOKEN_SECRET_KEY = exports.SUPERVISER_REFREASH_TOKEN_SECRET_KEY = exports.ADMIN_TOKEN_SECRET_KEY = exports.ADMIN_REFREASH_TOKEN_SECRET_KEY = exports.USER_REFREASH_TOKEN_SECRET_KEY = exports.USER_TOKEN_SECRET_KEY = exports.REDIS_URI = exports.DB_URI = exports.port = void 0;
+exports.API_SECRET = exports.API_KEY = exports.CLOUD_NAME = exports.APPLICATION_NAME = exports.WEB_CLIENT_ID = exports.TWITER_LINK = exports.INSTAGRAM_LINK = exports.FACEBOOK_LINK = exports.PASSWORD_APP = exports.EMAIL_APP = exports.SALT_ROUND = exports.IV_LENGTH = exports.ENCRYPTION_SECRET_KEY = exports.NATIONAL_ID_SECRET = exports.ACCESS_EXPIRES_IN = exports.REFREASH_EXPIRES_IN = exports.SUPERVISER_TOKEN_SECRET_KEY = exports.SUPERVISER_REFREASH_TOKEN_SECRET_KEY = exports.ADMIN_TOKEN_SECRET_KEY = exports.ADMIN_REFREASH_TOKEN_SECRET_KEY = exports.USER_REFREASH_TOKEN_SECRET_KEY = exports.USER_TOKEN_SECRET_KEY = exports.REDIS_URI = exports.DB_URI = exports.port = void 0;
 const dotenv_1 = require("dotenv");
 const node_path_1 = require("node:path");
 (0, dotenv_1.config)({ path: (0, node_path_1.resolve)(`.env.${process.env.NODE_ENV || 'development'}`) });
@@ -16,6 +16,8 @@ exports.SUPERVISER_TOKEN_SECRET_KEY = process.env.SUPERVISER_TOKEN_SECRET_KEY;
 exports.REFREASH_EXPIRES_IN = parseInt(process.env.REFREASH_EXPIRES_IN);
 exports.ACCESS_EXPIRES_IN = parseInt(process.env.ACCESS_EXPIRES_IN);
 exports.NATIONAL_ID_SECRET = Buffer.from(process.env.NATIONAL_ID_SECRET);
+exports.ENCRYPTION_SECRET_KEY = Buffer.from(process.env.ENCRYPTION_SECRET_KEY);
+exports.IV_LENGTH = Number(process.env.IV_LENGTH ?? 16);
 exports.SALT_ROUND = parseInt(process.env.SALT_ROUND ?? "12");
 exports.EMAIL_APP = process.env.EMAIL_APP;
 exports.PASSWORD_APP = process.env.PASSWORD_APP;

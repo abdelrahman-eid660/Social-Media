@@ -1,6 +1,5 @@
 export interface ISingupResponse {
-  email: string;
-  password: string;
+  message : string
 };
 export interface ILoginResponse {
   access_Token: string;

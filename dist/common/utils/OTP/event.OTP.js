@@ -10,7 +10,7 @@ const template_OTP_1 = require("./template.OTP");
 const index_1 = require("../../enum/index");
 exports.emailEmitter = new node_events_1.default();
 exports.emailEmitter.on("SEND_OTP", async (payload) => {
-    const { to, code, subject = index_1.OTPSubjectEnum.VerifyAccount, title = index_1.OTPTitleEnum.confirmEmail, expiredTime = 5 } = payload;
+    const { to, code, subject = index_1.OTPSubjectEnum.VERIFYACCOUNT, title = index_1.OTPTitleEnum.CONFIRMEMAIL, expiredTime = 5 } = payload;
     if (!to || !code) {
         console.error("SEND_OTP event missing required params");
         return;

@@ -1,14 +1,14 @@
-export const RedisActionsEnum = {
-    Request : "REQUEST",
-    BlockRequest : "BLOCK::REQUEST",
-    BlockLogin : "BLOCK::LOGIN",
-    BlockForgetPassword : "BLOCK::FOGET::PASSWORD",
-    BlockTwoStepVerification : "BLOCK::TWO::STEP::VERIFICATION",
+export enum RedisActionsEnum {
+    REQUEST = "REQUEST",
+    BLOCKREQUEST = "BLOCK::REQUEST",
+    BLOCKLOGIN = "BLOCK::LOGIN",
+    BLOCKFORETPASSWORD = "BLOCK::FOGET::PASSWORD",
+    BLOCKTWOSTEPVERIFICATION = "BLOCK::TWO::STEP::VERIFICATION",
 }
-export const RedisTypeEnum = {
-    ConfirmEmail : "Confirm::Email",
-    Login : "LOGIN",
-    ForgetPassword : "FORGET::PASSWORD",
-    ResetPassword : "RESET::PASSWORD",
-    TwoStepVerification : "TWO::STEP::VERIFICATION",
+export enum RedisTypeEnum {
+    CONFIRMEMAIL = "Confirm::Email",
+    LOGIN = "LOGIN",
+    FORGETPASSWORD = "FORGET::PASSWORD",
+    RESETPASSWORD = "RESET::PASSWORD",
+    TWOSTEPVERIFICATION = "TWO::STEP::VERIFICATION",
 }

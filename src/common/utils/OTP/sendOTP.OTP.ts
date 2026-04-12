@@ -1,5 +1,6 @@
-import nodemailer, { SendMailOptions } from "nodemailer"
+import nodemailer from "nodemailer"
 import { APPLICATION_NAME, EMAIL_APP, PASSWORD_APP } from "../../../config/config"
+import Mail from "nodemailer/lib/mailer"
 
 //================ OTP =================
 export const generateOTP = (): string => {
@@ -15,16 +16,6 @@ const transporter = nodemailer.createTransport({
   },
 })
 
-//================ Types =================
-type SendOTPParams = {
-  to: string | string[]
-  cc?: string | string[]
-  bcc?: string | string[]
-  subject: string
-  html: string
-  attachments?: SendMailOptions["attachments"]
-}
-
 //================ Send Email =================
 export const sendOTP = async ({
   to,
@@ -33,7 +24,7 @@ export const sendOTP = async ({
   html,
   attachments = [],
   subject,
-}: SendOTPParams): Promise<void> => {
+}: Mail.Options): Promise<void> => {
   try {
     await transporter.sendMail({
       to,

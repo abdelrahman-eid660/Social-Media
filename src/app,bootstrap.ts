@@ -2,14 +2,15 @@ import express from "express"
 import cors from 'cors'
 import { AuthRouter, UserRouter } from "./modules"
 import { globalErrorHandelr } from "./middleware/error.middleware"
-import { connectDB, redicConnection } from "./DB"
+import { connectDB } from "./DB"
+import { redisService } from "./common/service"
 async function bootstrap() {
     const app : express.Express = express()
 
     //DB 
     await connectDB()
     //REDIS
-    await redicConnection()
+    await redisService.connect()
     
     // Global Middleware
     app.use(cors() ,  express.json())
