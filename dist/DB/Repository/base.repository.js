@@ -37,16 +37,16 @@ class BaseRepository {
         return await doc.exec();
     }
     async updateOne({ filter = {}, update, options }) {
-        return await this.model.updateOne(filter, update, options);
+        return await this.model.updateOne(filter, { ...update, $inc: { __v: 1 } }, options);
     }
     async updateMany({ filter = {}, update, options }) {
-        return await this.model.updateMany(filter, update, options);
+        return await this.model.updateMany(filter, { ...update, $inc: { __v: 1 } }, options);
     }
     async findOneAndUpdate({ filter = {}, update, options }) {
-        return await this.model.findOneAndUpdate(filter, update, options);
+        return await this.model.findOneAndUpdate(filter, { ...update, $inc: { __v: 1 } }, options);
     }
     async findByIdAndUpdate({ _id, update, options }) {
-        return await this.model.findByIdAndUpdate(_id, update, options);
+        return await this.model.findByIdAndUpdate(_id, { ...update, $inc: { __v: 1 } }, options);
     }
     async deleteOne({ filter = {} }) {
         return await this.model.deleteOne(filter);
@@ -59,6 +59,10 @@ class BaseRepository {
     }
     async findByIdAndDelete({ _id, options }) {
         return await this.model.findByIdAndDelete(_id, options);
+    }
+    async aggregate(pipeline, options) {
+        const Pipeline = pipeline.length ? pipeline : [{ $match: {} }];
+        return this.model.aggregate(Pipeline, options);
     }
 }
 exports.BaseRepository = BaseRepository;

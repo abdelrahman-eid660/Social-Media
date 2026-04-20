@@ -6,6 +6,7 @@ const Repository_1 = require("../../DB/Repository");
 const exception_1 = require("../../common/exception");
 const enum_1 = require("../../common/enum");
 const security_1 = require("../../common/utils/security");
+const mongoose_1 = require("mongoose");
 const config_1 = require("../../config/config");
 class UserService {
     UserRepository;
@@ -39,7 +40,6 @@ class UserService {
         if (now < (decodedToken.iat + config_1.ACCESS_EXPIRES_IN)) {
             throw new exception_1.ConflictException("Current access session still valid");
         }
-        console.log("hhhh");
         await this.redis.sadd(this.redis.RevokeTokenKey(String(user._id)), String(decodedToken.jti));
         await this.redis.expire(this.redis.RevokeTokenKey(String(user._id)), ttl);
         return await this.tokenService.createLoginCredentials(user, issure);
@@ -63,6 +63,63 @@ class UserService {
                 break;
         }
         return status;
+    }
+    async freezeUser({ userId }) {
+        const user = await this.UserRepository.findOne({ filter: { _id: new mongoose_1.Types.ObjectId(userId) } });
+        if (!user) {
+            throw new exception_1.NotFoundException("User not found");
+        }
+        if (user.freezedAt) {
+            throw new exception_1.ConflictException("User is already frozen");
+        }
+        const account = await this.UserRepository.updateOne({
+            filter: { _id: new mongoose_1.Types.ObjectId(userId) },
+            update: { freezedAt: new Date() }
+        });
+        return "User frozen successfully";
+    }
+    async unFreezeUser({ userId }) {
+        const user = await this.UserRepository.findOne({
+            filter: { _id: new mongoose_1.Types.ObjectId(userId) }
+        });
+        if (!user) {
+            throw new exception_1.NotFoundException("User not found");
+        }
+        if (user.unfreezedAt) {
+            throw new exception_1.ConflictException("User is already unfrozen");
+        }
+        const account = await this.UserRepository.updateOne({ filter: { _id: new mongoose_1.Types.ObjectId(userId) }, update: { unfreezedAt: new Date() } });
+        return "User unfrozen successfully";
+    }
+    async softDelete({ userId }) {
+        const user = await this.UserRepository.findOne({
+            filter: { _id: new mongoose_1.Types.ObjectId(userId) }
+        });
+        if (!user) {
+            throw new exception_1.NotFoundException("User not found");
+        }
+        if (user.deletedAt) {
+            throw new exception_1.ConflictException("User is already in archive");
+        }
+        const account = await this.UserRepository.updateOne({ filter: { _id: new mongoose_1.Types.ObjectId(userId) }, update: { deletedAt: new Date() } });
+        return "User add to archive successfuly";
+    }
+    async restoreUser({ userId }) {
+        const user = await this.UserRepository.findOne({
+            filter: { _id: new mongoose_1.Types.ObjectId(userId) }
+        });
+        if (!user) {
+            throw new exception_1.NotFoundException("User not found");
+        }
+        if (user.restoredAt) {
+            throw new exception_1.ConflictException("User is already restored");
+        }
+        const account = await this.UserRepository.updateOne({ filter: { _id: new mongoose_1.Types.ObjectId(userId), paranoid: false }, update: { restoredAt: new Date() } });
+        return "User Restored Successful";
+    }
+    async hardDelete(user) {
+        await this.UserRepository.deleteOne({ filter: { _id: user._id, force: true } });
+        return "User Deleted Successful";
     }
 }
 exports.userService = new UserService();

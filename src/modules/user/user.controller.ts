@@ -13,6 +13,26 @@ router.patch("/update-password",authentication(), authorization(endPoint.General
   const account = await userService.updatePassword(req.body , req.user);
    successResponse({res , data :  account});
 });
+router.patch("/freeze-account",authentication(), authorization(endPoint.SensiveAuth) ,async (req : Request, res : Response, next : NextFunction) => {
+  const account = await userService.freezeUser(req.body);
+   successResponse({res , data :  account});
+});
+router.patch("/unfreeze-account",authentication(), authorization(endPoint.SensiveAuth) ,async (req : Request, res : Response, next : NextFunction) => {
+  const account = await userService.unFreezeUser(req.body);
+   successResponse({res , data :  account});
+});
+router.patch("/restore-account",authentication(), authorization(endPoint.SensiveAuth) ,async (req : Request, res : Response, next : NextFunction) => {
+  const account = await userService.restoreUser(req.body);
+   successResponse({res , data :  account});
+});
+router.patch("/soft-delete",authentication(), authorization(endPoint.SensiveAuth) ,async (req : Request, res : Response, next : NextFunction) => {
+  const account = await userService.softDelete(req.body);
+   successResponse({res , data :  account});
+});
+router.delete("/delete-account",authentication(), authorization(endPoint.GeneralAuth) ,async (req : Request, res : Response, next : NextFunction) => {
+  const account = await userService.hardDelete(req.user);
+   successResponse({res , data :  account});
+});
 router.get("/rotate",authentication(TokenTypeEnum.REFREASH) , async (req : Request, res : Response, next : NextFunction) => {
   const account = await userService.rotateToken(req.user, `${req.protocol}://${req.host}` , req.decode);
    successResponse({res, data : account});

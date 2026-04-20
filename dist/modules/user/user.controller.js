@@ -15,6 +15,26 @@ router.patch("/update-password", (0, middleware_1.authentication)(), (0, middlew
     const account = await user_service_1.userService.updatePassword(req.body, req.user);
     (0, response_1.successResponse)({ res, data: account });
 });
+router.patch("/freeze-account", (0, middleware_1.authentication)(), (0, middleware_1.authorization)(user_auth_1.endPoint.SensiveAuth), async (req, res, next) => {
+    const account = await user_service_1.userService.freezeUser(req.body);
+    (0, response_1.successResponse)({ res, data: account });
+});
+router.patch("/unfreeze-account", (0, middleware_1.authentication)(), (0, middleware_1.authorization)(user_auth_1.endPoint.SensiveAuth), async (req, res, next) => {
+    const account = await user_service_1.userService.unFreezeUser(req.body);
+    (0, response_1.successResponse)({ res, data: account });
+});
+router.patch("/restore-account", (0, middleware_1.authentication)(), (0, middleware_1.authorization)(user_auth_1.endPoint.SensiveAuth), async (req, res, next) => {
+    const account = await user_service_1.userService.restoreUser(req.body);
+    (0, response_1.successResponse)({ res, data: account });
+});
+router.patch("/soft-delete", (0, middleware_1.authentication)(), (0, middleware_1.authorization)(user_auth_1.endPoint.SensiveAuth), async (req, res, next) => {
+    const account = await user_service_1.userService.softDelete(req.body);
+    (0, response_1.successResponse)({ res, data: account });
+});
+router.delete("/delete-account", (0, middleware_1.authentication)(), (0, middleware_1.authorization)(user_auth_1.endPoint.GeneralAuth), async (req, res, next) => {
+    const account = await user_service_1.userService.hardDelete(req.user);
+    (0, response_1.successResponse)({ res, data: account });
+});
 router.get("/rotate", (0, middleware_1.authentication)(enum_1.TokenTypeEnum.REFREASH), async (req, res, next) => {
     const account = await user_service_1.userService.rotateToken(req.user, `${req.protocol}://${req.host}`, req.decode);
     (0, response_1.successResponse)({ res, data: account });

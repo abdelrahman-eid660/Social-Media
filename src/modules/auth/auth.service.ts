@@ -28,14 +28,12 @@ class AuthService {
   return payload;
   };
   async signup(data: ISignupDTO): Promise<string> {
-    const { email, password } = data;
+    const { email } = data;
     const user = await this.UserRepository.findOne({filter : {email , confirmEmail: null,provider: ProviderEnum.SYSTEM}})
     if (user) {
       throw new ConflictException("User Exist")
     }
-    await this.UserRepository.createOne({
-      data : {...data , password : await generateHash(password)}
-    })
+    await this.UserRepository.create({ data })
     await generateOtpAndSendOtpEmail({email , expiredTime :  2  })
     return "Check from your gmail"
   }
@@ -138,7 +136,6 @@ class AuthService {
   if (checkSamePassword) {
     throw new ConflictException("This password used befor you can't use it")
   }
-  user.password = await generateHash(newPassword)
   user.changeCredentialsTime = new Date(Date.now())
   await user.save()
   return "Password changed Successfuly"

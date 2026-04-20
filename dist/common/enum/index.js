@@ -18,3 +18,4 @@ __exportStar(require("./otp.enum"), exports);
 __exportStar(require("./redis.enum"), exports);
 __exportStar(require("./security.enum"), exports);
 __exportStar(require("./user.enum"), exports);
+__exportStar(require("./post.enum"), exports);

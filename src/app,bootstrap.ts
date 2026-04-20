@@ -4,6 +4,9 @@ import { AuthRouter, UserRouter } from "./modules"
 import { globalErrorHandelr } from "./middleware/error.middleware"
 import { connectDB } from "./DB"
 import { redisService } from "./common/service"
+import { UserModel } from "./DB/models"
+import { GenderEnum, ProviderEnum } from "./common/enum"
+import { UserRepository } from "./DB/Repository"
 async function bootstrap() {
     const app : express.Express = express()
 
@@ -33,4 +36,4 @@ async function bootstrap() {
         console.log("Server is running on port 3001");
     })
 }
-export default bootstrap 
+export default bootstrap

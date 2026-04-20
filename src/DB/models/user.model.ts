@@ -1,5 +1,8 @@
-import { model, models, Schema } from "mongoose";
-import { GenderEnum, ProviderEnum, RoleEnum, IUser } from "../../common/enum";
+import { HydratedDocument, model, models, ObjectId, Schema, Types } from "mongoose";
+import { GenderEnum, ProviderEnum, RoleEnum, IUser, IPost } from "../../common/enum";
+import { BadRequestException, NotFoundException } from "../../common/exception";
+import { generateEncryption, generateHash } from "../../common/utils/security";
+import { PostModel } from "./post.model";
 
 const UserScehma = new Schema<IUser>(
   {
@@ -9,6 +12,7 @@ const UserScehma = new Schema<IUser>(
     password: { type: String, required : function():boolean{
       return this.provider !== ProviderEnum.GOOGLE
     } },
+    slug: { type: String },
     bio: { type: String },
     phone: { type: String },
     profileImage: { type: String },
@@ -32,7 +36,11 @@ const UserScehma = new Schema<IUser>(
     },
     createdAt: Date,
     updatedAt: Date,
-    changeCredentialsTime  : Date
+    changeCredentialsTime  : Date,
+    deletedAt : Date,
+    restoredAt : Date,
+    freezedAt : Date,
+    unfreezedAt : Date,
   },
   {
     timestamps: true,
@@ -42,7 +50,6 @@ const UserScehma = new Schema<IUser>(
     toJSON: { virtuals: true },
   },
 );
-
 UserScehma.virtual("userName")
   .get(function () {
     return `${this.firstName} ${this.lastName}`;
@@ -51,6 +58,75 @@ UserScehma.virtual("userName")
     const [firstName, lastName] = value.split(" ");
     this.firstName = firstName as string;
     this.lastName = lastName as string;
+    // this.slug = value.replaceAll(/\s+/, '-')
   });
+
+  UserScehma.pre("validate",function(){
+    if (this.provider && this.provider == ProviderEnum.GOOGLE) {
+      throw new BadRequestException("You can't send password with google email")
+    }
+  })
+  UserScehma.pre("save", async function(){
+    if (this.isModified("password")) {
+    this.password = await generateHash(this.password)
+    }
+    if (this.phone && this.isModified("phone")) {
+     this.phone = await generateEncryption(this.phone)
+    }
+  })
+  UserScehma.pre(["find" , "findOne"] , function(){
+    const query = this.getQuery()
+    if (query.paranoid === false) {
+      this.setQuery({...query})
+    }else{
+      this.setQuery({...query , deletedAt : {$exists : false}})
+    }
+  })
+  UserScehma.pre(["updateOne" , "findOneAndUpdate"] , async function(){
+    const update = this.getUpdate() as HydratedDocument<IUser>
+    const query = this.getQuery()
+    if (update.deletedAt) {
+      this.setUpdate({...update , $unset : {restoredAt : 1}})
+      await PostModel.updateMany({ userId : query._id },{ $set: { deletedAt: new Date(Date.now()) } })
+    }
+    if (update.restoredAt) {
+      this.setQuery({...this.getQuery() , deletedAt : {$exists : true}})
+      this.setUpdate({...update , $unset : {deletedAt : 1}})
+      await PostModel.updateMany({ userId : query._id },{ $set: { restoredAt: new Date(Date.now()) } })
+    }
+    if (update.freezedAt) {
+      this.setUpdate({...update, $unset : {unfreezedAt : 1}})
+    }
+    if (update.unfreezedAt) {
+      this.setQuery({...this.getQuery() , freezedAt : {$exists : true}})
+      this.setUpdate({...update , $unset : {freezedAt : 1}})
+    }
+    if (query.paranoid === false) {
+      this.setQuery({...query})
+    }else{
+      this.setQuery({...query , deletedAt : {$exists : false}})
+    }
+  })
+  UserScehma.pre(["deleteOne" , "findOneAndDelete"] , async function(){
+    const query = this.getQuery()
+    const user = await this.model.findOne(query);
+    if (!user) {
+      throw new NotFoundException("User not found");
+    };
+    const force = query?.force;
+    if (!user.deletedAt && !force) {
+      throw new BadRequestException(
+        "Account is not soft deleted. Use force delete to permanently remove it."
+      );
+    }
+      this.setQuery({...query})
+      await PostModel.deleteMany({userId : query._id as ObjectId})
+  })
+  UserScehma.pre("aggregate" , function(){
+    const opts = this.options || {}
+    if (opts.allowDeleted === false) {
+      this.pipeline().unshift({$match : {deletedAt : {$exists : false}}})
+    }
+  })
 
 export const UserModel = models.User || model<IUser>("User", UserScehma);

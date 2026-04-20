@@ -31,14 +31,12 @@ class AuthService {
     }
     ;
     async signup(data) {
-        const { email, password } = data;
+        const { email } = data;
         const user = await this.UserRepository.findOne({ filter: { email, confirmEmail: null, provider: enum_1.ProviderEnum.SYSTEM } });
         if (user) {
             throw new exception_1.ConflictException("User Exist");
         }
-        await this.UserRepository.createOne({
-            data: { ...data, password: await (0, security_1.generateHash)(password) }
-        });
+        await this.UserRepository.create({ data });
         await (0, index_1.generateOtpAndSendOtpEmail)({ email, expiredTime: 2 });
         return "Check from your gmail";
     }
@@ -140,7 +138,6 @@ class AuthService {
         if (checkSamePassword) {
             throw new exception_1.ConflictException("This password used befor you can't use it");
         }
-        user.password = await (0, security_1.generateHash)(newPassword);
         user.changeCredentialsTime = new Date(Date.now());
         await user.save();
         return "Password changed Successfuly";
