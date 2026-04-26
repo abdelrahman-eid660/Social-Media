@@ -6,9 +6,23 @@ const middleware_1 = require("../../middleware");
 const enum_1 = require("../../common/enum");
 const user_auth_1 = require("./user.auth");
 const user_service_1 = require("./user.service");
+const multer_1 = require("../../common/utils/multer");
+const service_1 = require("../../common/service");
 const router = (0, express_1.Router)();
 router.get("/", (0, middleware_1.authentication)(), (0, middleware_1.authorization)(user_auth_1.endPoint.GeneralAuth), async (req, res, next) => {
     const account = await user_service_1.userService.profile(req.user);
+    (0, response_1.successResponse)({ res, data: account });
+});
+router.post("/send-notification", async (req, res, next) => {
+    await service_1.notificationService.sendNotification({ token: req.body.token, data: { title: "Done", body: "Send notification successful" } });
+    (0, response_1.successResponse)({ res });
+});
+router.patch("/profile-Image", (0, middleware_1.authentication)(), (0, middleware_1.authorization)(user_auth_1.endPoint.GeneralAuth), async (req, res, next) => {
+    const account = await user_service_1.userService.profileImage(req.user, req.body);
+    (0, response_1.successResponse)({ res, data: account });
+});
+router.patch("/cover-image", (0, middleware_1.authentication)(), (0, middleware_1.authorization)(user_auth_1.endPoint.GeneralAuth), (0, multer_1.CloudFileUpload)({ storageApproach: enum_1.StorageApproachEnum.DISK, validation: multer_1.fieldValidation.image, maxSize: 12 }).single("cover-image"), async (req, res, next) => {
+    const account = await user_service_1.userService.coverImage(req.user, req.file);
     (0, response_1.successResponse)({ res, data: account });
 });
 router.patch("/update-password", (0, middleware_1.authentication)(), (0, middleware_1.authorization)(user_auth_1.endPoint.GeneralAuth), async (req, res, next) => {

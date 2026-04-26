@@ -8,6 +8,7 @@ const connectDB = async () => {
     try {
         await (0, mongoose_1.connect)(config_1.DB_URI);
         await models_1.UserModel.syncIndexes();
+        await models_1.PostModel.syncIndexes();
         console.log(`DB Connected successfully 🌞`);
     }
     catch (error) {

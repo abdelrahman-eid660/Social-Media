@@ -8,6 +8,7 @@ exports.LoginScehma = {
     body: zod_1.z.strictObject({
         email: validation_1.generalValidationFields.email,
         password: validation_1.generalValidationFields.password,
+        FCM: zod_1.z.string().optional()
     })
 };
 exports.SignUpSchema = {

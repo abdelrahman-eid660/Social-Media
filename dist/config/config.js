@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.API_SECRET = exports.API_KEY = exports.CLOUD_NAME = exports.APPLICATION_NAME = exports.WEB_CLIENT_ID = exports.TWITER_LINK = exports.INSTAGRAM_LINK = exports.FACEBOOK_LINK = exports.PASSWORD_APP = exports.EMAIL_APP = exports.SALT_ROUND = exports.IV_LENGTH = exports.ENCRYPTION_SECRET_KEY = exports.NATIONAL_ID_SECRET = exports.ACCESS_EXPIRES_IN = exports.REFREASH_EXPIRES_IN = exports.SUPERVISER_TOKEN_SECRET_KEY = exports.SUPERVISER_REFREASH_TOKEN_SECRET_KEY = exports.ADMIN_TOKEN_SECRET_KEY = exports.ADMIN_REFREASH_TOKEN_SECRET_KEY = exports.USER_REFREASH_TOKEN_SECRET_KEY = exports.USER_TOKEN_SECRET_KEY = exports.REDIS_URI = exports.DB_URI = exports.port = void 0;
+exports.AWS_EXPIRES_IN = exports.AWS_SECRET_ACCESS_KEY = exports.AWS_ACCESS_KEY_ID = exports.AWS_BUCKET_NAME = exports.AWS_CLOUDFRONT_LINK = exports.AWS_REGION = exports.API_SECRET = exports.API_KEY = exports.CLOUD_NAME = exports.APPLICATION_NAME = exports.WEB_CLIENT_ID = exports.TWITER_LINK = exports.INSTAGRAM_LINK = exports.FACEBOOK_LINK = exports.PASSWORD_APP = exports.EMAIL_APP = exports.SALT_ROUND = exports.IV_LENGTH = exports.ENCRYPTION_SECRET_KEY = exports.NATIONAL_ID_SECRET = exports.ACCESS_EXPIRES_IN = exports.REFREASH_EXPIRES_IN = exports.SUPERVISER_TOKEN_SECRET_KEY = exports.SUPERVISER_REFREASH_TOKEN_SECRET_KEY = exports.ADMIN_TOKEN_SECRET_KEY = exports.ADMIN_REFREASH_TOKEN_SECRET_KEY = exports.USER_REFREASH_TOKEN_SECRET_KEY = exports.USER_TOKEN_SECRET_KEY = exports.REDIS_URI = exports.DB_URI = exports.port = void 0;
 const dotenv_1 = require("dotenv");
 const node_path_1 = require("node:path");
 (0, dotenv_1.config)({ path: (0, node_path_1.resolve)(`.env.${process.env.NODE_ENV || 'development'}`) });
@@ -29,3 +29,9 @@ exports.APPLICATION_NAME = process.env.APPLICATION_NAME;
 exports.CLOUD_NAME = process.env.CLOUD_NAME;
 exports.API_KEY = process.env.API_KEY;
 exports.API_SECRET = process.env.API_SECRET;
+exports.AWS_REGION = process.env.AWS_REGION;
+exports.AWS_CLOUDFRONT_LINK = process.env.AWS_CLOUDFRONT_LINK;
+exports.AWS_BUCKET_NAME = process.env.AWS_BUCKET_NAME;
+exports.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
+exports.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
+exports.AWS_EXPIRES_IN = parseInt(process.env.AWS_EXPIRES_IN || "120");

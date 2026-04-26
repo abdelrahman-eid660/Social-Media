@@ -39,43 +39,7 @@ export class RedisService {
   async connect(){
     await this.clint.connect()
   }
-  RevokeTokenKey(userId: string | Types.ObjectId): string {
-    return `revoke:${userId}`;
-  }
-
-  RevokeAllTokenKey(userId: string | Types.ObjectId): string {
-    return `revoke_all:${userId}`;
-  }
-
-  baseRedis({
-    type = RedisTypeEnum.CONFIRMEMAIL,
-    key = RedisActionsEnum.REQUEST, 
-    action,
-    blockAction,
-  }: RedisKeyParams): string {
-    return blockAction
-      ? `${type}::${key}::${blockAction}`
-      : action
-        ? `${type}::${key}::${action}`
-        : `${type}::${key}`;
-  }
-
-  baseProfileRedis(key: string): string {
-    return `profile::view::${key}`;
-  }
-
-  RedisKey(params: RedisKeyParams = {}): string {
-    return this.baseRedis(params);
-  }
-
-  RedisMaxRequestKey(params: RedisKeyParams = {}): string {
-    return this.baseRedis(params);
-  }
-
-  RedisBlockKey(params: RedisKeyParams = {}): string {
-    return this.baseRedis(params);
-  }
-  //======================== Set ==========================
+    //======================== Set ==========================
   async set<T>({
     key,
     value,
@@ -149,6 +113,71 @@ export class RedisService {
     const result = await this.clint.sIsMember(key, value);
     return result === 1;
   }
+
+  //======================== Login out ======================
+  RevokeTokenKey(userId: string | Types.ObjectId): string {
+    return `revoke:${userId}`;
+  }
+
+  RevokeAllTokenKey(userId: string | Types.ObjectId): string {
+    return `revoke_all:${userId}`;
+  }
+//======================== attampet Formate ====================
+
+  baseRedis({
+    type = RedisTypeEnum.CONFIRMEMAIL,
+    key = RedisActionsEnum.REQUEST, 
+    action,
+    blockAction,
+  }: RedisKeyParams): string {
+    return blockAction
+      ? `${type}::${key}::${blockAction}`
+      : action
+        ? `${type}::${key}::${action}`
+        : `${type}::${key}`;
+  }
+
+  baseProfileRedis(key: string): string {
+    return `profile::view::${key}`;
+  }
+
+  RedisKey(params: RedisKeyParams = {}): string {
+    return this.baseRedis(params);
+  }
+
+  RedisMaxRequestKey(params: RedisKeyParams = {}): string {
+    return this.baseRedis(params);
+  }
+
+  RedisBlockKey(params: RedisKeyParams = {}): string {
+    return this.baseRedis(params);
+  }
+  
+  //===================== Notification ====================
+  FCM_Key(userId : Types.ObjectId | string){
+    return  `user:FCM:${userId}`;
+  }
+  
+  async addFCM(userId : Types.ObjectId | string, FCMToken : string) {
+    return await this.clint.sAdd(this.FCM_Key(userId), FCMToken);
+  }
+
+  async  removeFCM(userId : Types.ObjectId | string, FCMToken : string) {
+    return await this.clint.sRem(this.FCM_Key(userId), FCMToken);
+  }
+
+  async  getFCMs(userId : Types.ObjectId | string) {
+    return await this.clint.sMembers(this.FCM_Key(userId));
+  }
+
+  async  hasFCMs(userId : Types.ObjectId | string) {
+    return await this.clint.sCard(this.FCM_Key(userId));
+  }
+
+  async  removeFCMUser(userId : Types.ObjectId | string) {
+    return await this.clint.del(this.FCM_Key(userId));
+  }
+
 }
 
 export const redisService = new RedisService()

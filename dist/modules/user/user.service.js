@@ -12,15 +12,38 @@ class UserService {
     UserRepository;
     redis;
     tokenService;
+    s3;
     constructor() {
         this.UserRepository = new Repository_1.UserRepository();
         this.redis = service_1.redisService;
         this.tokenService = service_1.tokenService;
+        this.s3 = service_1.s3Service;
     }
     async profile(User) {
         const user = await this.UserRepository.findOne({ filter: { _id: User?._id, confirmedAt: { $exists: true } } });
         if (!user) {
             throw new exception_1.NotFoundException("No account matching");
+        }
+        return user;
+    }
+    async profileImage(user, { ContentType, OriginalName }) {
+        const { url, Key } = await this.s3.createPreSignedUploadLink({
+            ContentType,
+            OriginalName,
+            path: `users/${user._id.toString()}/profile`
+        });
+        return { user, url };
+    }
+    async coverImage(user, file) {
+        const oldCover = user?.coverImage;
+        const { Key } = await this.s3.uploadLargAsset({
+            file,
+            path: `users/${user._id.toString()}/cover`
+        });
+        user.coverImage = Key;
+        await user.save();
+        if (oldCover) {
+            await this.s3.deleteAsset({ Key: oldCover });
         }
         return user;
     }
@@ -118,7 +141,12 @@ class UserService {
         return "User Restored Successful";
     }
     async hardDelete(user) {
-        await this.UserRepository.deleteOne({ filter: { _id: user._id, force: true } });
+        const account = await this.UserRepository.deleteOne({ filter: { _id: user._id, force: true } });
+        if (!account.deletedCount) {
+            throw new exception_1.NotFoundException("Invalid account");
+        }
+        await this.s3.deleteFolderByPreifx({ Prefix: `users/${user._id.toString()}` });
+        await this.s3.deleteFolderByPreifx({ Prefix: `posts/${user._id.toString()}` });
         return "User Deleted Successful";
     }
 }

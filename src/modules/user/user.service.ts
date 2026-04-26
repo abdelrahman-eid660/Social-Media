@@ -1,10 +1,10 @@
-import { TokenService, tokenService , redisService, RedisService, IGenerateToken} from './../../common/service';
+import { TokenService, tokenService , redisService, RedisService, IGenerateToken, S3Service, s3Service} from './../../common/service';
 import { IUser } from './../../common/enum/user.enum';
 import { UserRepository } from "../../DB/Repository";
-import { BadRequestException, ConflictException, NotFoundException } from '../../common/exception';
+import {  ConflictException, NotFoundException } from '../../common/exception';
 import { LogoutEnum } from '../../common/enum';
 import { compareHash, generateHash } from '../../common/utils/security';
-import { HydratedDocument, ObjectId, QueryFilter, Types } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 import { JwtPayload } from 'jsonwebtoken';
 import { ACCESS_EXPIRES_IN } from '../../config/config';
 
@@ -12,15 +12,47 @@ class UserService {
     private readonly UserRepository : UserRepository
     private redis : RedisService
     private tokenService : TokenService
+    private s3 : S3Service
     constructor(){
         this.UserRepository = new UserRepository()
         this.redis = redisService
         this.tokenService = tokenService
+        this.s3 = s3Service
     }
     async profile(User : HydratedDocument<IUser>){
         const user = await this.UserRepository.findOne({filter : {_id : User?._id , confirmedAt : {$exists : true}}})
         if (!user) {
             throw new NotFoundException("No account matching")
+        }
+        return user
+    }
+    async profileImage(user : HydratedDocument<IUser> , {ContentType  , OriginalName} : {ContentType : string , OriginalName : string}) : Promise<{user : IUser , url : string}>{
+        const {url , Key} = await this.s3.createPreSignedUploadLink({
+            ContentType,
+            OriginalName,
+            path : `users/${user._id.toString()}/profile`
+        })
+        return {user , url}
+    }
+    // async profileImage(user : HydratedDocument<IUser> , file : Express.Multer.File){
+    //     const {Key} = await this.s3.uploadLargAsset({
+    //         file,
+    //         path : `users/${user._id.toString()}/profile`
+    //     })
+    //     user.profileImage = Key as string
+    //     await user.save()
+    //     return user
+    // }
+    async coverImage(user : HydratedDocument<IUser> , file : Express.Multer.File){
+        const oldCover = user?.coverImage
+        const {Key} = await this.s3.uploadLargAsset({
+            file,
+            path : `users/${user._id.toString()}/cover`
+        })
+        user.coverImage = Key as string
+        await user.save()
+        if (oldCover) {
+            await this.s3.deleteAsset({Key : oldCover}) 
         }
         return user
     }
@@ -64,8 +96,8 @@ class UserService {
         }
         return status
     }
-    async freezeUser({userId} : {userId : string}):Promise<string>{
-        const user = await this.UserRepository.findOne({ filter: { _id : new Types.ObjectId(userId) as any }});
+    async freezeUser({userId } : {userId : string}):Promise<string>{
+        const user = await this.UserRepository.findOne({ filter: { _id : new Types.ObjectId(userId) }});
         if (!user) {
             throw new NotFoundException("User not found");
         }
@@ -118,7 +150,12 @@ class UserService {
         return "User Restored Successful"
     }
     async hardDelete(user : HydratedDocument<IUser>):Promise<string>{
-        await this.UserRepository.deleteOne({filter : {_id : user._id , force : true}})
+       const account = await this.UserRepository.deleteOne({filter : {_id : user._id , force : true}})
+       if (!account.deletedCount) {
+        throw new NotFoundException("Invalid account")
+       }
+       await this.s3.deleteFolderByPreifx({Prefix : `users/${user._id.toString()}`})
+       await this.s3.deleteFolderByPreifx({Prefix : `posts/${user._id.toString()}`})
         return "User Deleted Successful"
     }
 }

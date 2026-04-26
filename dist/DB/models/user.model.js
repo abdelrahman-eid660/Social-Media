@@ -17,7 +17,7 @@ const UserScehma = new mongoose_1.Schema({
     bio: { type: String },
     phone: { type: String },
     profileImage: { type: String },
-    coverImage: { type: [String] },
+    coverImage: { type: String },
     DOB: Date,
     confirmedAt: Date,
     provider: {
@@ -57,6 +57,7 @@ UserScehma.virtual("userName")
     const [firstName, lastName] = value.split(" ");
     this.firstName = firstName;
     this.lastName = lastName;
+    this.slug = value.replaceAll(/\s+/, '-');
 });
 UserScehma.pre("validate", function () {
     if (this.provider && this.provider == enum_1.ProviderEnum.GOOGLE) {
@@ -83,14 +84,15 @@ UserScehma.pre(["find", "findOne"], function () {
 UserScehma.pre(["updateOne", "findOneAndUpdate"], async function () {
     const update = this.getUpdate();
     const query = this.getQuery();
+    const updateManyPosts = post_model_1.PostModel.updateMany.bind(post_model_1.PostModel);
     if (update.deletedAt) {
         this.setUpdate({ ...update, $unset: { restoredAt: 1 } });
-        await post_model_1.PostModel.updateMany({ userId: query._id }, { $set: { deletedAt: new Date(Date.now()) } });
+        await updateManyPosts({ userId: query._id }, { $set: { deletedAt: new Date(Date.now()) } });
     }
     if (update.restoredAt) {
         this.setQuery({ ...this.getQuery(), deletedAt: { $exists: true } });
         this.setUpdate({ ...update, $unset: { deletedAt: 1 } });
-        await post_model_1.PostModel.updateMany({ userId: query._id }, { $set: { restoredAt: new Date(Date.now()) } });
+        await updateManyPosts({ userId: query._id }, { $set: { restoredAt: new Date(Date.now()) } });
     }
     if (update.freezedAt) {
         this.setUpdate({ ...update, $unset: { unfreezedAt: 1 } });
@@ -118,7 +120,8 @@ UserScehma.pre(["deleteOne", "findOneAndDelete"], async function () {
         throw new exception_1.BadRequestException("Account is not soft deleted. Use force delete to permanently remove it.");
     }
     this.setQuery({ ...query });
-    await post_model_1.PostModel.deleteMany({ userId: query._id });
+    const deleteManyPosts = post_model_1.PostModel.deleteMany.bind(post_model_1.PostModel);
+    await deleteManyPosts({ userId: query._id });
 });
 UserScehma.pre("aggregate", function () {
     const opts = this.options || {};

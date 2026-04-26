@@ -42,3 +42,10 @@ export const APPLICATION_NAME = process.env.APPLICATION_NAME!
 export const CLOUD_NAME = process.env.CLOUD_NAME!
 export const API_KEY = process.env.API_KEY!
 export const API_SECRET = process.env.API_SECRET!
+//====================== AWS S3 ============================
+export const AWS_REGION = process.env.AWS_REGION! as string
+export const AWS_CLOUDFRONT_LINK = process.env.AWS_CLOUDFRONT_LINK! as string
+export const AWS_BUCKET_NAME = process.env.AWS_BUCKET_NAME! as string
+export const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID! as string
+export const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY! as string
+export const AWS_EXPIRES_IN = parseInt(process.env.AWS_EXPIRES_IN! as string || "120")

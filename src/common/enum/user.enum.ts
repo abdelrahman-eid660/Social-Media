@@ -1,4 +1,4 @@
-import { ObjectId } from "mongoose";
+import { ObjectId, Types } from "mongoose";
 import { RoleEnum } from "./security.enum";
 
 export enum ProviderEnum {
@@ -10,7 +10,7 @@ export enum GenderEnum {
   FEMALE,
 }
 export interface IUser {
-  _id: ObjectId;
+  _id: Types.ObjectId;
   firstName: string;
   lastName: string;
   userName?: string;
@@ -20,7 +20,7 @@ export interface IUser {
   bio?: string;
   phone?: string;
   profileImage?: string;
-  coverImage?: string[];
+  coverImage?: string;
   DOB?: Date;
   confirmedAt: Date;
   provider: ProviderEnum;

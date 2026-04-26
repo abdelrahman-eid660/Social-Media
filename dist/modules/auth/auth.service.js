@@ -10,12 +10,14 @@ const config_1 = require("../../config/config");
 const Repository_1 = require("../../DB/Repository");
 class AuthService {
     UserRepository;
+    notification;
     redis;
     token;
     constructor() {
         this.UserRepository = new Repository_1.UserRepository();
         this.redis = index_1.redisService;
         this.token = index_1.tokenService;
+        this.notification = index_1.notificationService;
     }
     async verifyGoogleAccount(idToken) {
         const client = new google_auth_library_1.OAuth2Client();
@@ -70,7 +72,7 @@ class AuthService {
         return "Confirm Email Successfuly";
     }
     async login(data, issure) {
-        const { email, password } = data;
+        const { email, password, FCM } = data;
         await (0, index_1.isKeyBlocked)({ email, type: enum_1.RedisTypeEnum.LOGIN, action: enum_1.RedisActionsEnum.BLOCKLOGIN });
         await (0, index_1.maxKeyRequest)({ email, type: enum_1.RedisTypeEnum.LOGIN, expiredTime: 5, blockAction: enum_1.RedisActionsEnum.BLOCKLOGIN });
         const account = await this.UserRepository.findOne({ filter: { email, confirmedAt: { $exists: true } } });
@@ -79,6 +81,14 @@ class AuthService {
         }
         if (!await (0, security_1.compareHash)(password, account.password)) {
             throw new exception_1.BadRequestException("Invalid Cerdientails");
+        }
+        if (FCM) {
+            this.redis.FCM_Key(account._id);
+            await this.redis.addFCM(account._id, FCM);
+            const tokens = await this.redis.getFCMs(account._id);
+            if (tokens?.length) {
+                await this.notification.sendNotifications({ tokens, data: { body: `New Login At ${new Date().toLocaleString()}`, title: "Login" } });
+            }
         }
         await this.redis.deleteKey(this.redis.RedisKey({ key: email, type: enum_1.RedisTypeEnum.LOGIN, action: enum_1.RedisActionsEnum.REQUEST }));
         return await this.token.createLoginCredentials(account, issure);
@@ -144,11 +154,8 @@ class AuthService {
     }
     ;
     async signupWithGmail({ idToken }, issuer) {
-        console.log({ ii: idToken });
         const payload = await this.verifyGoogleAccount(idToken);
-        console.log({ pat: payload });
         const checkUserExist = await this.UserRepository.findOne({ filter: { email: payload.email } });
-        console.log({ checkUserExist });
         if (checkUserExist) {
             if (checkUserExist?.provider == enum_1.ProviderEnum.SYSTEM) {
                 throw new exception_1.ConflictException("Account already exist with diffrent provider ");
@@ -166,17 +173,14 @@ class AuthService {
                 confirmedAt: new Date(),
             },
         });
-        console.log({ user });
         return { account: await this.token.createLoginCredentials(user, issuer) };
     }
     ;
     async loginWithGmail({ idToken }, issuer) {
         const payload = await this.verifyGoogleAccount(idToken);
-        console.log({ payload2: payload });
         const user = await this.UserRepository.findOne({
             filter: { email: payload.email, provider: enum_1.ProviderEnum.GOOGLE }
         });
-        console.log({ user2: user });
         if (!user) {
             throw new exception_1.NotFoundException("Invalid login credentials or invalid login approach");
         }

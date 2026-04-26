@@ -19,31 +19,6 @@ class RedisService {
     async connect() {
         await this.clint.connect();
     }
-    RevokeTokenKey(userId) {
-        return `revoke:${userId}`;
-    }
-    RevokeAllTokenKey(userId) {
-        return `revoke_all:${userId}`;
-    }
-    baseRedis({ type = redis_enum_1.RedisTypeEnum.CONFIRMEMAIL, key = redis_enum_1.RedisActionsEnum.REQUEST, action, blockAction, }) {
-        return blockAction
-            ? `${type}::${key}::${blockAction}`
-            : action
-                ? `${type}::${key}::${action}`
-                : `${type}::${key}`;
-    }
-    baseProfileRedis(key) {
-        return `profile::view::${key}`;
-    }
-    RedisKey(params = {}) {
-        return this.baseRedis(params);
-    }
-    RedisMaxRequestKey(params = {}) {
-        return this.baseRedis(params);
-    }
-    RedisBlockKey(params = {}) {
-        return this.baseRedis(params);
-    }
     async set({ key, value, ttl, parse = false, }) {
         const Value = parse ? JSON.stringify(value) : value;
         if (ttl) {
@@ -88,6 +63,49 @@ class RedisService {
     async sismember(key, value) {
         const result = await this.clint.sIsMember(key, value);
         return result === 1;
+    }
+    RevokeTokenKey(userId) {
+        return `revoke:${userId}`;
+    }
+    RevokeAllTokenKey(userId) {
+        return `revoke_all:${userId}`;
+    }
+    baseRedis({ type = redis_enum_1.RedisTypeEnum.CONFIRMEMAIL, key = redis_enum_1.RedisActionsEnum.REQUEST, action, blockAction, }) {
+        return blockAction
+            ? `${type}::${key}::${blockAction}`
+            : action
+                ? `${type}::${key}::${action}`
+                : `${type}::${key}`;
+    }
+    baseProfileRedis(key) {
+        return `profile::view::${key}`;
+    }
+    RedisKey(params = {}) {
+        return this.baseRedis(params);
+    }
+    RedisMaxRequestKey(params = {}) {
+        return this.baseRedis(params);
+    }
+    RedisBlockKey(params = {}) {
+        return this.baseRedis(params);
+    }
+    FCM_Key(userId) {
+        return `user:FCM:${userId}`;
+    }
+    async addFCM(userId, FCMToken) {
+        return await this.clint.sAdd(this.FCM_Key(userId), FCMToken);
+    }
+    async removeFCM(userId, FCMToken) {
+        return await this.clint.sRem(this.FCM_Key(userId), FCMToken);
+    }
+    async getFCMs(userId) {
+        return await this.clint.sMembers(this.FCM_Key(userId));
+    }
+    async hasFCMs(userId) {
+        return await this.clint.sCard(this.FCM_Key(userId));
+    }
+    async removeFCMUser(userId) {
+        return await this.clint.del(this.FCM_Key(userId));
     }
 }
 exports.RedisService = RedisService;

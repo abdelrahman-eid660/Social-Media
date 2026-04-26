@@ -1,4 +1,4 @@
-import { HydratedDocument, model, models, ObjectId, Schema, Types } from "mongoose";
+import { HydratedDocument, model, models, MongooseBaseQueryOptions, ObjectId, QueryFilter, Schema, Types } from "mongoose";
 import { GenderEnum, ProviderEnum, RoleEnum, IUser, IPost } from "../../common/enum";
 import { BadRequestException, NotFoundException } from "../../common/exception";
 import { generateEncryption, generateHash } from "../../common/utils/security";
@@ -16,7 +16,7 @@ const UserScehma = new Schema<IUser>(
     bio: { type: String },
     phone: { type: String },
     profileImage: { type: String },
-    coverImage: { type: [String] },
+    coverImage: { type: String },
     DOB: Date,
     confirmedAt: Date,
     provider: {
@@ -58,7 +58,7 @@ UserScehma.virtual("userName")
     const [firstName, lastName] = value.split(" ");
     this.firstName = firstName as string;
     this.lastName = lastName as string;
-    // this.slug = value.replaceAll(/\s+/, '-')
+    this.slug = value.replaceAll(/\s+/, '-')
   });
 
   UserScehma.pre("validate",function(){
@@ -85,14 +85,19 @@ UserScehma.virtual("userName")
   UserScehma.pre(["updateOne" , "findOneAndUpdate"] , async function(){
     const update = this.getUpdate() as HydratedDocument<IUser>
     const query = this.getQuery()
+    type updateManyFn = (
+        filter : QueryFilter<IPost>,
+        options?: MongooseBaseQueryOptions<IPost>
+      )=> ReturnType<typeof PostModel.updateMany >
+      const updateManyPosts = PostModel.updateMany.bind(PostModel) as updateManyFn 
     if (update.deletedAt) {
       this.setUpdate({...update , $unset : {restoredAt : 1}})
-      await PostModel.updateMany({ userId : query._id },{ $set: { deletedAt: new Date(Date.now()) } })
+      await updateManyPosts({ userId : query._id },{ $set: { deletedAt: new Date(Date.now()) } })
     }
     if (update.restoredAt) {
       this.setQuery({...this.getQuery() , deletedAt : {$exists : true}})
       this.setUpdate({...update , $unset : {deletedAt : 1}})
-      await PostModel.updateMany({ userId : query._id },{ $set: { restoredAt: new Date(Date.now()) } })
+      await updateManyPosts({ userId : query._id },{ $set: { restoredAt: new Date(Date.now()) } })
     }
     if (update.freezedAt) {
       this.setUpdate({...update, $unset : {unfreezedAt : 1}})
@@ -120,7 +125,12 @@ UserScehma.virtual("userName")
       );
     }
       this.setQuery({...query})
-      await PostModel.deleteMany({userId : query._id as ObjectId})
+      type deleteManyFn = (
+        filter : QueryFilter<IPost>,
+        options?: MongooseBaseQueryOptions<IPost>
+      )=> ReturnType<typeof PostModel.deleteMany >
+      const deleteManyPosts = PostModel.deleteMany.bind(PostModel) as deleteManyFn 
+      await deleteManyPosts({userId : query._id})
   })
   UserScehma.pre("aggregate" , function(){
     const opts = this.options || {}

@@ -1,5 +1,5 @@
 import { model, models, Schema, Types } from "mongoose";
-import { IPost } from "../../common/enum";
+import { availabilityEnum, IPost } from "../../common/enum";
 
 const PostScehma = new Schema<IPost>(
   {
@@ -7,15 +7,34 @@ const PostScehma = new Schema<IPost>(
       type: Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
-    post: String,
-    image: [String],
-    video: [String],
+    content: String,
+    attachments: {
+      image: [String],
+      video: [String],
+    },
+    tags: [
+      {
+        type: Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    mentions: [
+      {
+        type: Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    availability : {
+      type : Number,
+      enum : availabilityEnum,
+      default : availabilityEnum.PUBLIC
+    },
     deletedAt: {
       type: Date,
       default: null,
     },
-
     restoredAt: {
       type: Date,
       default: null,
@@ -28,4 +47,4 @@ const PostScehma = new Schema<IPost>(
   },
 );
 
-export const PostModel = models.Post || model<any>("Post", PostScehma);
+export const PostModel = models.Post || model<IPost>("Post", PostScehma);

@@ -1,19 +1,21 @@
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
 import { OTPSubjectEnum, OTPTitleEnum, ProviderEnum, RedisActionsEnum, RedisTypeEnum } from '../../common/enum';
 import { BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from '../../common/exception';
-import {RedisService, redisService , generateOtpAndSendOtpEmail, isKeyBlocked, isKeyExpired, maxKeyRequest , tokenService, TokenService, IGenerateToken } from '../../common/service/index';
+import {RedisService, redisService , generateOtpAndSendOtpEmail, isKeyBlocked, isKeyExpired, maxKeyRequest , tokenService, TokenService, IGenerateToken, NotificationService, notificationService } from '../../common/service/index';
 import { compareHash, generateHash } from '../../common/utils/security';
 import { WEB_CLIENT_ID } from '../../config/config';
 import { UserRepository } from '../../DB/Repository';
 import { IConfirmEmailDTO, IConfirmForgetPasswordDTO, ILoginDTO, IResetPasswordDTO, ISignupDTO } from "./auth.dto";
 class AuthService {
-  private readonly UserRepository : UserRepository
-  private redis : RedisService
-  private token : TokenService
+  private UserRepository : UserRepository
+  private readonly notification : NotificationService
+  private readonly redis : RedisService
+  private readonly token : TokenService
   constructor() {
     this.UserRepository = new UserRepository()
     this.redis = redisService
     this.token = tokenService
+    this.notification =  notificationService
   }
   private async verifyGoogleAccount(idToken : string) : Promise<TokenPayload>{
   const client = new OAuth2Client();
@@ -67,7 +69,7 @@ class AuthService {
     return "Confirm Email Successfuly"
   }
   async login(data: ILoginDTO , issure : string) : Promise<IGenerateToken> {
-    const {email , password} = data
+    const {email , password , FCM} = data
     await isKeyBlocked({email , type  :RedisTypeEnum.LOGIN , action : RedisActionsEnum.BLOCKLOGIN})
     await maxKeyRequest({email , type : RedisTypeEnum.LOGIN , expiredTime : 5  , blockAction : RedisActionsEnum.BLOCKLOGIN})
     const account = await this.UserRepository.findOne({filter:{email , confirmedAt : {$exists : true}}})
@@ -76,6 +78,14 @@ class AuthService {
     }
     if (!await compareHash(password , account.password)) {
         throw new BadRequestException("Invalid Cerdientails")
+    }
+    if (FCM) {
+       this.redis.FCM_Key(account._id)
+       await this.redis.addFCM(account._id , FCM )
+       const tokens = await this.redis.getFCMs(account._id)
+       if (tokens?.length) {
+         await this.notification.sendNotifications({tokens , data : {body : `New Login At ${new Date().toLocaleString()}` , title : "Login"}})
+       }
     }
     await this.redis.deleteKey(this.redis.RedisKey({key : email , type : RedisTypeEnum.LOGIN , action : RedisActionsEnum.REQUEST}))
     return await this.token.createLoginCredentials(account , issure)
@@ -140,15 +150,9 @@ class AuthService {
   await user.save()
   return "Password changed Successfuly"
   };
-  async signupWithGmail({ idToken } : {idToken : string}, issuer : string) {
-    console.log({ii : idToken});
-    
-  const payload = await this.verifyGoogleAccount(idToken);
-  console.log({pat : payload});
-  
-  const checkUserExist = await this.UserRepository.findOne({filter: { email: payload.email as string }})
-  console.log({checkUserExist});
-  
+  async signupWithGmail({ idToken } : {idToken : string}, issuer : string) {    
+  const payload = await this.verifyGoogleAccount(idToken);  
+  const checkUserExist = await this.UserRepository.findOne({filter: { email: payload.email as string }})  
   if (checkUserExist) {
     if (checkUserExist?.provider == ProviderEnum.SYSTEM) {
       throw new ConflictException("Account already exist with diffrent provider ");
@@ -166,17 +170,13 @@ class AuthService {
       confirmedAt: new Date() as Date,
     },
   })
-  console.log({user});
   return { account: await this.token.createLoginCredentials(user, issuer) };
   };
   async loginWithGmail ({ idToken } : {idToken : string}, issuer : string) : Promise<IGenerateToken>{
-  const payload = await this.verifyGoogleAccount(idToken);
-  console.log({payload2 : payload});
-  
+  const payload = await this.verifyGoogleAccount(idToken);  
   const user = await this.UserRepository.findOne({
     filter: { email: payload.email as string, provider: ProviderEnum.GOOGLE }
   })
-  console.log({user2 : user});
   
   if (!user) {
     throw new NotFoundException( "Invalid login credentials or invalid login approach");

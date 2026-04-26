@@ -1,4 +1,4 @@
-import { AnyKeys, CreateOptions, DeleteResult, FlattenMaps, HydratedDocument, Model, MongooseUpdateQueryOptions, PopulateOptions, ProjectionType, QueryFilter, QueryOptions, Types, UpdateQuery, UpdateWithAggregationPipeline, UpdateWriteOpResult ,  } from "mongoose";
+import { AnyKeys, CreateOptions, DeleteResult, FlattenMaps, HydratedDocument, Model, MongooseUpdateQueryOptions, PopulateOptions, ProjectionType, Query, QueryFilter, QueryOptions, Types, UpdateQuery, UpdateWithAggregationPipeline, UpdateWriteOpResult ,  } from "mongoose";
 import { AggregateOptions } from "node:sqlite";
 export abstract class BaseRepository<TRawDocument> {
     constructor(protected readonly model : Model<TRawDocument> ){}
@@ -30,7 +30,7 @@ export abstract class BaseRepository<TRawDocument> {
         if (options?.populate) {doc.populate(options.populate as PopulateOptions[])}
         return await doc.exec()
     }
-    async updateOne({filter = {} , update , options}:{filter: QueryFilter<TRawDocument | any>,update: UpdateQuery<TRawDocument> | UpdateWithAggregationPipeline,options?: (MongooseUpdateQueryOptions<TRawDocument>) | null}):Promise<UpdateWriteOpResult>{
+    async updateOne({filter = {} , update , options}:{filter: QueryFilter<HydratedDocument<TRawDocument>> ,update: UpdateQuery<TRawDocument> | UpdateWithAggregationPipeline,options?: (MongooseUpdateQueryOptions<TRawDocument>) | ( MongooseUpdateQueryOptions<TRawDocument>) | null}):Promise<UpdateWriteOpResult>{
         return await this.model.updateOne(filter , {...update , $inc : {__v : 1}} , options)
     }
     async updateMany({filter = {} , update , options}:{filter: QueryFilter<TRawDocument>,update: UpdateQuery<TRawDocument> | UpdateWithAggregationPipeline,options?: (MongooseUpdateQueryOptions<TRawDocument>) | null}):Promise<UpdateWriteOpResult>{

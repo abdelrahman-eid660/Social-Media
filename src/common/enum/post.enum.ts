@@ -1,11 +1,22 @@
-import { Types } from "mongoose"
+import { Types } from "mongoose";
 
-export interface IPost{
-    _id : Types.ObjectId
-    userId : Types.ObjectId
-    post : string
-    image? : string[] | string
-    video? : string[] | string
-    deletedAt? : Date | null
-    restoredAt? : Date | null
+export enum availabilityEnum {
+  PUBLIC,
+  ONLYFRIENDS,
+  PRIVATE,
+}
+
+export interface IPost {
+  _id: Types.ObjectId;
+  userId: Types.ObjectId;
+  content?: string;
+  attachments?: {
+    image?: string[] | string;
+    video?: string[] | string;
+  };
+  tags?: Types.ObjectId[];
+  mentions?: Types.ObjectId[];
+  availability: availabilityEnum;
+  deletedAt?: Date | null;
+  restoredAt?: Date | null;
 }
